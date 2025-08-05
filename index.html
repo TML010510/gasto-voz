@@ -102,7 +102,56 @@
       document.getElementById("notas").value = notas;
     }
 
-    async function interpretarConOpenRouter() {
+    
+    }
+
+    async function enviarFormulario() {
+      const archivo = document.getElementById("archivo").files[0];
+      const data = {
+        concepto: document.getElementById("concepto").value,
+        valor: parseFloat(document.getElementById("valor").value),
+        medio_pago: document.getElementById("medio").value,
+        debito_credito: document.getElementById("tipo").value,
+        presupuesto: document.getElementById("presupuesto").value,
+        notas: document.getElementById("notas").value
+      };
+
+      if (archivo) {
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+          data.foto_base64 = e.target.result;
+          data.foto_nombre = archivo.name;
+          await enviarData(data);
+        }
+        reader.readAsDataURL(archivo);
+      } else {
+        await enviarData(data);
+      }
+    }
+
+    async function enviarData(data) {
+      try {
+        const res = await fetch(webhook, {
+          method: 'POST',
+          body: JSON.stringify(data),
+          headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status} - ${res.statusText}`);
+        }
+
+        const resultado = await res.json();
+        document.getElementById("resultado").innerText = resultado.status === 'success'
+          ? "✅ Gasto registrado con éxito"
+          : "❌ Error: " + resultado.message;
+      } catch (error) {
+        console.error("Error al enviar datos:", error);
+        document.getElementById("resultado").innerText =
+          "❌ No se pudo conectar con el servidor. Verifica tu conexión o vuelve a intentarlo.";
+      }
+    }
+  async function interpretarConOpenRouter() {
   const apiKey = document.getElementById("openrouterKey").value;
   const input = document.getElementById("rawInput").value;
   if (!apiKey || !input) return alert("Falta texto o API Key");
@@ -159,54 +208,6 @@ Texto: \"${input}\"`;
     console.error(e);
   }
 }
-    }
-
-    async function enviarFormulario() {
-      const archivo = document.getElementById("archivo").files[0];
-      const data = {
-        concepto: document.getElementById("concepto").value,
-        valor: parseFloat(document.getElementById("valor").value),
-        medio_pago: document.getElementById("medio").value,
-        debito_credito: document.getElementById("tipo").value,
-        presupuesto: document.getElementById("presupuesto").value,
-        notas: document.getElementById("notas").value
-      };
-
-      if (archivo) {
-        const reader = new FileReader();
-        reader.onload = async function(e) {
-          data.foto_base64 = e.target.result;
-          data.foto_nombre = archivo.name;
-          await enviarData(data);
-        }
-        reader.readAsDataURL(archivo);
-      } else {
-        await enviarData(data);
-      }
-    }
-
-    async function enviarData(data) {
-      try {
-        const res = await fetch(webhook, {
-          method: 'POST',
-          body: JSON.stringify(data),
-          headers: { 'Content-Type': 'application/json' }
-        });
-
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status} - ${res.statusText}`);
-        }
-
-        const resultado = await res.json();
-        document.getElementById("resultado").innerText = resultado.status === 'success'
-          ? "✅ Gasto registrado con éxito"
-          : "❌ Error: " + resultado.message;
-      } catch (error) {
-        console.error("Error al enviar datos:", error);
-        document.getElementById("resultado").innerText =
-          "❌ No se pudo conectar con el servidor. Verifica tu conexión o vuelve a intentarlo.";
-      }
-    }
-  </script>
+</script>
 </body>
 </html>
