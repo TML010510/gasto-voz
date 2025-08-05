@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Registro de Gastos por Voz</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: sans-serif; padding: 1em; max-width: 600px; margin: auto; }
+    input, textarea, select, button { width: 100%; margin: 0.5em 0; padding: 0.7em; font-size: 1em; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <h2>🎤 Registrar gasto con tu voz</h2>
+
+  <button onclick="startDictation()">🎙️ Dictar gasto</button>
+  <textarea id="rawInput" rows="3" placeholder="Texto dictado..." readonly></textarea>
+  <button onclick="interpretInput()">🧠 Interpretar gasto</button>
+
+  <h3>📋 Datos extraídos (puedes editar):</h3>
+  <input id="concepto" placeholder="Concepto">
+  <input id="valor" placeholder="Valor" type="number">
+  <input id="medio" placeholder="Medio de pago">
+  <select id="tipo">
+    <option value="Débito">Débito</option>
+    <option value="Crédito">Crédito</option>
+  </select>
+  <input id="presupuesto" placeholder="Presupuesto">
+  <textarea id="notas" placeholder="Notas adicionales"></textarea>
+
+  <h3>📎 Adjuntar comprobante (imagen o PDF):</h3>
+  <input type="file" id="archivo" accept="image/*,.pdf">
+
+  <button onclick="enviarFormulario()">🚀 Enviar a Google Sheets</button>
+
+  <div id="resultado"></div>
+
+  <script>
+    const webhook = "https://script.google.com/macros/s/AKfycbzZUaHQCfeVUla-pyyNzp0iGdcNTJS81qaKX6SKqOL3CKPa5T5d_sAUfHDUoFwtmO9U/exec";
+
+    function startDictation() {
+      const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+      recognition.lang = 'es-ES';
+      recognition.start();
+      recognition.onresult = function(event) {
+        const text = event.results[0][0].transcript;
+        document.getElementById("rawInput").value = text;
+      }
+    }
+
+    function interpretInput() {
+      const texto = document.getElementById("rawInput").value;
+      if (!texto) return alert("Primero dicta un gasto");
+
+      // Ejemplo simple (puedes ajustar esto o usar un endpoint real de IA)
+      let concepto = "", valor = "", medio = "", tipo = "Débito", presupuesto = "";
+
+      if (texto.includes("Netflix")) concepto = "Netflix";
+      if (texto.includes("Nequi")) medio = "Nequi";
+      if (texto.includes("tarjeta")) medio = "Tarjeta";
+      if (texto.includes("crédito")) tipo = "Crédito";
+
+      const match = texto.match(/\d{1,3}(\.\d{3})*(,\d{2})?/g);
+      if (match) valor = match[0].replace(".", "").replace(",", ".");
+
+      document.getElementById("concepto").value = concepto;
+      document.getElementById("valor").value = valor;
+      document.getElementById("medio").value = medio;
+      document.getElementById("tipo").value = tipo;
+      document.getElementById("presupuesto").value = presupuesto;
+    }
+
+    async function enviarFormulario() {
+      const fd = new FormData();
+      const archivo = document.getElementById("archivo").files[0];
+      const data = {
+        concepto: document.getElementById("concepto").value,
+        valor: parseFloat(document.getElementById("valor").value),
+        medio_pago: document.getElementById("medio").value,
+        debito_credito: document.getElementById("tipo").value,
+        presupuesto: document.getElementById("presupuesto").value,
+        notas: document.getElementById("notas").value
+      };
+
+      if (archivo) {
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+          data.foto_base64 = e.target.result;
+          data.foto_nombre = archivo.name;
+          await enviarData(data);
+        }
+        reader.readAsDataURL(archivo);
+      } else {
+        await enviarData(data);
+      }
+    }
+
+    async function enviarData(data) {
+      const res = await fetch(webhook, {
+        method: 'POST',
+        body: JSON.stringify(data),
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const resultado = await res.json();
+      document.getElementById("resultado").innerText = resultado.status === 'success'
+        ? "✅ Gasto registrado con éxito"
+        : "❌ Error: " + resultado.message;
+    }
+  </script>
+</body>
+</html>
