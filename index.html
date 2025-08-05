@@ -45,9 +45,9 @@
     const webhook = "https://script.google.com/macros/s/AKfycbzZUaHQCfeVUla-pyyNzp0iGdcNTJS81qaKX6SKqOL3CKPa5T5d_sAUfHDUoFwtmO9U/exec";
 
     window.onload = () => {
-      const saved = localStorage.getItem("openrouterKey");
-      if (saved) document.getElementById("openrouterKey").value = saved;
-    };
+  const saved = localStorage.getItem("openrouterKey");
+  if (saved) document.getElementById("openrouterKey").value = saved;
+};
 
     function startDictation() {
       const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
