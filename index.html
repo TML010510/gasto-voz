@@ -48,7 +48,6 @@
   <script>
     const webhook = "https://script.google.com/macros/s/AKfycbzZUaHQCfeVUla-pyyNzp0iGdcNTJS81qaKX6SKqOL3CKPa5T5d_sAUfHDUoFwtmO9U/exec";
 
-    // Guardar y cargar clave API localmente
     window.onload = () => {
       const storedKey = localStorage.getItem("openai_api_key");
       if (storedKey) document.getElementById("apiKey").value = storedKey;
@@ -76,21 +75,32 @@
 
       const prompt = `Devuélveme únicamente un objeto JSON válido (sin explicaciones) con las siguientes claves en español: concepto, valor (número), medio_pago, debito_credito, presupuesto, notas. Ejemplo: {\n  \"concepto\": \"Netflix\",\n  \"valor\": 53000,\n  \"medio_pago\": \"Tarjeta Visa\",\n  \"debito_credito\": \"Débito\",\n  \"presupuesto\": \"Servicios\",\n  \"notas\": \"Pago mensual\"\n}. Texto: \"${input}\"`;
 
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-          model: modelo,
-          messages: [{ role: "user", content: prompt }],
-          temperature: 0.2
-        })
-      });
-
-      const data = await response.json();
       try {
+        const response = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${apiKey}`
+          },
+          body: JSON.stringify({
+            model: modelo,
+            messages: [{ role: "user", content: prompt }],
+            temperature: 0.2
+          })
+        });
+
+        if (response.status === 429) {
+          alert("⚠️ Has alcanzado el límite de velocidad de la API de OpenAI. Espera un momento y vuelve a intentar.");
+          return;
+        }
+
+        const data = await response.json();
+
+        if (data.error && data.error.code === "insufficient_quota") {
+          alert("❌ No tienes crédito suficiente en tu cuenta de OpenAI. Revisa tu panel: https://platform.openai.com/account/usage y tu facturación.");
+          return;
+        }
+
         const content = data.choices[0].message.content;
         console.log("Respuesta bruta de OpenAI:", content);
         const obj = JSON.parse(content);
@@ -102,7 +112,7 @@
         document.getElementById("notas").value = obj.notas || "";
       } catch (e) {
         alert("❌ No se pudo interpretar correctamente la respuesta de IA. Revisa consola (F12).\n\n" + e.message);
-        console.log("Respuesta completa:", data);
+        console.log("Error capturado:", e);
       }
     }
 
