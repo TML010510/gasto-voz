@@ -185,10 +185,27 @@ Texto: \"${input}\"`;
     }
 
     async function enviarData(data) {
-      const res = await fetch(webhook, {
-        method: 'POST',
-        body: JSON.stringify(data),
-        headers: { 'Content-Type': 'application/json' }
+  try {
+    const res = await fetch(webhook, {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status} - ${res.statusText}`);
+    }
+
+    const resultado = await res.json();
+    document.getElementById("resultado").innerText = resultado.status === 'success'
+      ? "✅ Gasto registrado con éxito"
+      : "❌ Error: " + resultado.message;
+  } catch (error) {
+    console.error("Error al enviar datos:", error);
+    document.getElementById("resultado").innerText =
+      "❌ No se pudo conectar con el servidor. Verifica tu conexión o vuelve a intentarlo.";
+  }
+}
       });
       const resultado = await res.json();
       document.getElementById("resultado").innerText = resultado.status === 'success'
