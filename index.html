@@ -53,33 +53,47 @@
       const texto = document.getElementById("rawInput").value.toLowerCase();
       if (!texto) return alert("Dicta un gasto antes de interpretar");
 
-      // Estimación simple por reglas básicas (no IA)
-      let concepto = "", valor = "", medio = "", tipo = "Débito", presupuesto = "", notas = "";
+      let concepto = "", valor = "", medio = "", tipo = "Débito", presupuesto = "", notas = texto;
 
-      // Buscar número
+      // Buscar valor numérico
       const numMatch = texto.match(/\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?/);
       if (numMatch) valor = numMatch[0].replace(/[.,]/g, '');
 
-      // Buscar medios de pago comunes
+      // Medios de pago
       if (texto.includes("nequi")) medio = "Nequi";
       else if (texto.includes("daviplata")) medio = "Daviplata";
       else if (texto.includes("efectivo")) medio = "Efectivo";
       else if (texto.includes("tarjeta")) medio = "Tarjeta";
 
-      // Buscar tipo
       if (texto.includes("crédito")) tipo = "Crédito";
 
-      // Concepto y presupuesto como aproximación
-      const palabras = texto.split(" ");
-      concepto = palabras.find(p => p.length > 3) || "";
-      presupuesto = texto.includes("hogar") ? "Hogar" : (texto.includes("factura") ? "Facturas" : "");
+      if (texto.includes("hogar")) presupuesto = "Hogar";
+      else if (texto.includes("factura")) presupuesto = "Facturas";
+
+      // Buscar concepto a partir de verbos clave
+      const verbos = ["pagué", "cancelé", "compré", "gasté", "transferí"];
+      for (let verbo of verbos) {
+        if (texto.includes(verbo)) {
+          const inicio = texto.indexOf(verbo) + verbo.length;
+          const resto = texto.slice(inicio).trim();
+          const fin = resto.indexOf("con") !== -1 ? resto.indexOf("con") : resto.length;
+          concepto = resto.slice(0, fin).trim();
+          break;
+        }
+      }
+
+      // Valor por defecto si no se encontró
+      if (!concepto) {
+        const palabras = texto.split(" ");
+        concepto = palabras.find(p => p.length > 4) || "";
+      }
 
       document.getElementById("concepto").value = concepto;
       document.getElementById("valor").value = valor;
       document.getElementById("medio").value = medio;
       document.getElementById("tipo").value = tipo;
       document.getElementById("presupuesto").value = presupuesto;
-      document.getElementById("notas").value = texto;
+      document.getElementById("notas").value = notas;
     }
 
     async function enviarFormulario() {
