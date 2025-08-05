@@ -16,8 +16,13 @@
   <button onclick="startDictation()">🎙️ Dictar gasto</button>
   <textarea id="rawInput" rows="3" placeholder="Texto dictado..." readonly></textarea>
 
-  <h3>🧠 Interpretar gasto (localmente)</h3>
-  <button onclick="interpretarLocalmente()">🧠 Interpretar sin API</button>
+  <h3>🧠 Interpretar gasto</h3>
+  <button onclick="interpretarLocalmente()">🧠 Interpretar sin IA</button>
+  <button onclick="interpretarConOpenRouter()">🤖 Interpretar con IA (OpenRouter)</button>
+
+  <label>API Key OpenRouter:
+    <input id="openrouterKey" type="password" placeholder="pk-..." onchange="localStorage.setItem('openrouterKey', this.value)">
+  </label>
 
   <h3>📋 Datos extraídos (puedes editar):</h3>
   <input id="concepto" placeholder="Concepto">
@@ -39,6 +44,11 @@
   <script>
     const webhook = "https://script.google.com/macros/s/AKfycbzZUaHQCfeVUla-pyyNzp0iGdcNTJS81qaKX6SKqOL3CKPa5T5d_sAUfHDUoFwtmO9U/exec";
 
+    window.onload = () => {
+      const saved = localStorage.getItem("openrouterKey");
+      if (saved) document.getElementById("openrouterKey").value = saved;
+    };
+
     function startDictation() {
       const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
       recognition.lang = 'es-ES';
@@ -55,11 +65,9 @@
 
       let concepto = "", valor = "", medio = "", tipo = "Débito", presupuesto = "", notas = texto;
 
-      // Buscar valor numérico
       const numMatch = texto.match(/\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?/);
       if (numMatch) valor = numMatch[0].replace(/[.,]/g, '');
 
-      // Medios de pago
       if (texto.includes("nequi")) medio = "Nequi";
       else if (texto.includes("daviplata")) medio = "Daviplata";
       else if (texto.includes("efectivo")) medio = "Efectivo";
@@ -70,7 +78,6 @@
       if (texto.includes("hogar")) presupuesto = "Hogar";
       else if (texto.includes("factura")) presupuesto = "Facturas";
 
-      // Buscar concepto a partir de verbos clave
       const verbos = ["pagué", "cancelé", "compré", "gasté", "transferí"];
       for (let verbo of verbos) {
         if (texto.includes(verbo)) {
@@ -82,7 +89,6 @@
         }
       }
 
-      // Valor por defecto si no se encontró
       if (!concepto) {
         const palabras = texto.split(" ");
         concepto = palabras.find(p => p.length > 4) || "";
@@ -94,6 +100,42 @@
       document.getElementById("tipo").value = tipo;
       document.getElementById("presupuesto").value = presupuesto;
       document.getElementById("notas").value = notas;
+    }
+
+    async function interpretarConOpenRouter() {
+      const apiKey = document.getElementById("openrouterKey").value;
+      const input = document.getElementById("rawInput").value;
+      if (!apiKey || !input) return alert("Falta texto o API Key");
+
+      const prompt = `Extrae estos campos en JSON válido desde el siguiente texto: concepto, valor, medio_pago, debito_credito, presupuesto, notas. Texto: "${input}"`;
+
+      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: "openai/gpt-3.5-turbo",
+          messages: [
+            { role: "user", content: prompt }
+          ]
+        })
+      });
+
+      const data = await response.json();
+      try {
+        const result = JSON.parse(data.choices[0].message.content);
+        document.getElementById("concepto").value = result.concepto || "";
+        document.getElementById("valor").value = result.valor || "";
+        document.getElementById("medio").value = result.medio_pago || "";
+        document.getElementById("tipo").value = result.debito_credito || "Débito";
+        document.getElementById("presupuesto").value = result.presupuesto || "";
+        document.getElementById("notas").value = result.notas || "";
+      } catch (e) {
+        alert("No se pudo interpretar la respuesta de OpenRouter");
+        console.error(data);
+      }
     }
 
     async function enviarFormulario() {
